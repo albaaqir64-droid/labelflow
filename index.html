@@ -3,7 +3,33 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>LabelFlow — Crop. Sort. Print.</title>
+<title>LabelFlow — Auto Crop Meesho, Flipkart &amp; Amazon Shipping Labels from PDF (Free Online Tool)</title>
+<meta name="description" content="Free online tool to automatically crop shipping labels from Meesho, Flipkart, Amazon and courier PDFs (Delhivery, Blue Dart, Ecom Express, XpressBees, DTDC, Ekart, India Post). Remove the tax invoice, keep only the label, sort by courier, and download a ready-to-print 4x6 PDF. Works fully in your browser — no upload, no signup." />
+<meta name="keywords" content="meesho label crop, flipkart label crop, amazon label crop, shipping label pdf crop, courier label sorter, 4x6 label print, remove invoice from shipping label, meesho pdf tool, delhivery label crop, ecommerce seller tools india" />
+<link rel="canonical" href="https://labelflow.example/" />
+<meta name="robots" content="index, follow" />
+
+<meta property="og:type" content="website" />
+<meta property="og:title" content="LabelFlow — Auto Crop Meesho, Flipkart & Amazon Shipping Labels from PDF" />
+<meta property="og:description" content="Upload your Meesho, Flipkart or Amazon order PDF — LabelFlow auto-crops the shipping label, removes the invoice, sorts by courier, and gives you a print-ready 4x6 PDF." />
+<meta property="og:url" content="https://labelflow.example/" />
+
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:title" content="LabelFlow — Auto Crop Meesho, Flipkart & Amazon Shipping Labels" />
+<meta name="twitter:description" content="Free browser-based tool to crop shipping labels from Meesho, Flipkart, Amazon and courier PDFs, sort by courier, and export a 4x6 print-ready PDF." />
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "LabelFlow",
+  "applicationCategory": "BusinessApplication",
+  "operatingSystem": "Any (runs in browser)",
+  "description": "Automatically crop shipping labels from Meesho, Flipkart, Amazon and courier PDFs, remove the invoice, sort by courier, and export a print-ready 4x6 PDF.",
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "INR" }
+}
+</script>
+
 <script type="text/plain" id="pdfWorkerSrc">/**
  * @licstart The following is the entire license notice for the
  * JavaScript code in this page
@@ -245,7 +271,7 @@
     <div>
       <div class="badge">🔒 Secure • Browser-based processing</div>
       <h1 style="margin-top:14px">YOUR LABELS. <span class="accent">SORTED</span> &amp; READY TO PRINT.</h1>
-      <p>Upload your courier PDF, automatically crop shipping labels away from the invoice, and prepare them for 4×6 thermal printing. Your PDF stays on your device — nothing is uploaded anywhere.</p>
+      <p>Auto-crop shipping labels from your <b>Meesho</b>, <b>Flipkart</b> and <b>Amazon</b> order PDFs — remove the tax invoice, sort by courier (Delhivery, Blue Dart, Ecom Express, XpressBees, DTDC, Ekart, India Post) and export a print-ready 4×6 PDF. Your PDF stays on your device — nothing is uploaded anywhere.</p>
       <div class="hero-actions">
         <button class="btn btn-primary" onclick="scrollToId('uploadSection')">🟢 Upload PDF</button>
         <button class="btn btn-outline" onclick="scrollToId('howitworks')">How It Works</button>
@@ -270,7 +296,7 @@
       <p><b>Drop your shipping PDF here</b></p>
       <div class="or">or</div>
       <button class="btn btn-primary" onclick="event.stopPropagation();document.getElementById('fileInput').click()">Upload PDF</button>
-      <div class="hint">PDF only • Maximum 25 MB</div>
+      <div class="hint">PDF only • No practical size limit — even 1000+ orders in one file work fine</div>
       <input type="file" id="fileInput" accept="application/pdf" />
     </div>
 
@@ -377,7 +403,7 @@
 <section id="help">
   <div class="wrap" style="max-width:680px">
     <h2 class="section-title">Help</h2>
-    <div class="help-item">How do I crop my Meesho labels? — Just upload the PDF; LabelFlow auto-crops it. Use Manual Crop if it needs adjusting.</div>
+    <div class="help-item">How do I crop my Meesho, Flipkart or Amazon labels? — Just upload the order PDF; LabelFlow auto-crops the shipping label away from the invoice. Use Manual Crop if it needs adjusting.</div>
     <div class="help-item">Does LabelFlow support 4×6 thermal printers? — Yes, use "Download 4×6 PDF" for a print-ready file.</div>
     <div class="help-item">What happens to my invoice section? — It's removed from the cropped output, kept only in your original file.</div>
     <div class="help-item">Which courier labels are supported? — Meesho, Delhivery, Blue Dart, Ecom Express, XpressBees, Ekart, DTDC, India Post, Amazon and more, auto-detected from the label text.</div>
@@ -404,7 +430,11 @@
 <div id="cropModal" class="hidden">
   <div class="cropbox-modal">
     <h3>Manual Crop</h3>
-    <p>Drag the box over the shipping label area. This applies to every page.</p>
+    <p>Drag the box over the shipping label area. This applies to every page of the selected courier only — each courier keeps its own crop.</p>
+    <div class="field">
+      <label>Editing crop for</label>
+      <select id="cropCourierSelect"></select>
+    </div>
     <div class="preview-shell" style="display:flex;justify-content:center;background:#F1F5F9;border-radius:10px;padding:14px;overflow:auto;">
       <div class="stage" id="stage">
         <canvas id="pdfCanvas"></canvas>
@@ -529,9 +559,12 @@ function detectContentBlocks(cnv, cx){
     raw.push({minX,maxX,minY,maxY,count});
   }
   const totalCells=gw*gh;
-  const blocks=raw.filter(b=>b.count>totalCells*0.003).map(b=>({
-    x0:b.minX*scale, x1:Math.min(w,(b.maxX+1)*scale), y0:b.minY*scale, y1:Math.min(h,(b.maxY+1)*scale), area:b.count
-  }));
+  const blocks=raw.filter(b=>b.count>totalCells*0.003).map(b=>{
+    const x0=b.minX*scale, x1=Math.min(w,(b.maxX+1)*scale), y0=b.minY*scale, y1=Math.min(h,(b.maxY+1)*scale);
+    return { x0, x1, y0, y1, area:(x1-x0)*(y1-y0) }; // bounding-box size, not ink-pixel count —
+    // a solid-filled banner (e.g. "COD: Check the payable amount") has very high ink density in a
+    // small strip and would otherwise outrank the actual (sparser) barcode+address label block.
+  });
   blocks.sort((a,b)=>b.area-a.area);
   return blocks;
 }
@@ -545,11 +578,51 @@ function ratioRectToRawRect(ratio, cnv, viewport, rawDims){
 }
 
 // ---------------- main pipeline ----------------
+let courierCropRatios = {}; // courier -> {ratio (display-space, from a sample page), rawRatio, sampleViewport, sampleCanvas, sampleRawDims}
+
+async function detectCourier(page){
+  const textContent = await page.getTextContent();
+  const text = textContent.items.map(it=>it.str).join(' ').toLowerCase();
+  for(const c of COURIERS){ if(text.includes(c.toLowerCase())) return c==='Xpress Bees'?'XpressBees':c; }
+  return 'Other';
+}
+
+async function autoDetectCropForPage(pageIndex){
+  const page = await pdfjsDoc.getPage(pageIndex);
+  const {disp, raw} = await getPageViewports(page);
+  const maxWidth = 900;
+  const renderScale = Math.min(2, maxWidth/disp.width);
+  const viewport = page.getViewport({scale: renderScale});
+  const tmpCanvas = document.createElement('canvas');
+  tmpCanvas.width = viewport.width; tmpCanvas.height = viewport.height;
+  const tctx = tmpCanvas.getContext('2d');
+  await page.render({canvasContext:tctx, viewport}).promise;
+
+  let ratio;
+  const rotation = page.rotate;
+  if((rotation===90 || rotation===270) && disp.width > disp.height*1.3){
+    // Combined label+invoice PDFs generated by the common Indian courier
+    // aggregators (Delhivery/Valmo/Xpress Bees etc, rotated landscape A4)
+    // consistently place the shipping label in the trailing ~38% column,
+    // full height. This is far more reliable than blob-guessing on these
+    // dense, bordered templates, so use it as the default whenever the
+    // page shape matches that pattern.
+    ratio = { x:0.60, y:0.015, w:0.39, h:0.97 };
+  } else {
+    const blocks = detectContentBlocks(tmpCanvas, tctx);
+    ratio = blocks.length ? blockToRatio(blocks[0], tmpCanvas.width, tmpCanvas.height) : {x:0.06,y:0.06,w:0.88,h:0.88};
+  }
+  const rawDims = {w:raw.width, h:raw.height};
+  const rawRatio = ratioRectToRawRect(ratio, tmpCanvas, viewport, rawDims);
+  return { ratio, rawRatio, viewport, canvas:tmpCanvas, rawDims };
+}
+
 async function runPipeline(){
   document.getElementById('fileSelected').classList.add('hidden');
   document.getElementById('processingView').classList.remove('hidden');
   document.getElementById('resultSection').classList.add('hidden');
   labels = [];
+  courierCropRatios = {};
 
   setStep('read', 5);
   await sleep(120);
@@ -559,33 +632,35 @@ async function runPipeline(){
   await sleep(120);
 
   setStep('bounds', 30);
-  const page1 = await pdfjsDoc.getPage(1);
-  const {disp, raw} = await getPageViewports(page1);
-  const maxWidth = 900;
-  const renderScale = Math.min(2, maxWidth/disp.width);
-  const viewport = page1.getViewport({scale: renderScale});
-  const tmpCanvas = document.createElement('canvas');
-  tmpCanvas.width = viewport.width; tmpCanvas.height = viewport.height;
-  const tctx = tmpCanvas.getContext('2d');
-  await page1.render({canvasContext:tctx, viewport}).promise;
-  const blocks = detectContentBlocks(tmpCanvas, tctx);
-  if(blocks.length){ cropRatio = blockToRatio(blocks[0], tmpCanvas.width, tmpCanvas.height); }
-  currentViewport = viewport; rawPageDims = {w:raw.width, h:raw.height};
-  canvasEl = tmpCanvas; ctx2 = tctx;
+  // detect the courier for every page first, so each courier's label can be
+  // auto-cropped from its own layout instead of forcing one crop on all pages
+  const pageCouriers = [];
+  for(let i=1;i<=numPages;i++){
+    const page = await pdfjsDoc.getPage(i);
+    pageCouriers.push(await detectCourier(page));
+  }
   await sleep(120);
 
   setStep('crop', 55);
-  const rawRatio = ratioRectToRawRect(cropRatio, canvasEl, currentViewport, rawPageDims);
+  const uniqueCouriers = [...new Set(pageCouriers)];
+  for(const courier of uniqueCouriers){
+    const firstIdx = pageCouriers.findIndex(c=>c===courier) + 1;
+    const det = await autoDetectCropForPage(firstIdx);
+    courierCropRatios[courier] = det;
+  }
+  // keep the shared module-level state pointed at the first courier's sample,
+  // used as the default when opening Manual Crop
+  const firstCourier = uniqueCouriers[0];
+  cropRatio = courierCropRatios[firstCourier].ratio;
+  currentViewport = courierCropRatios[firstCourier].viewport;
+  rawPageDims = courierCropRatios[firstCourier].rawDims;
+  canvasEl = courierCropRatios[firstCourier].canvas;
   await sleep(120);
 
   setStep('courier', 75);
   for(let i=1;i<=numPages;i++){
-    const page = await pdfjsDoc.getPage(i);
-    const textContent = await page.getTextContent();
-    const text = textContent.items.map(it=>it.str).join(' ');
-    let courier = 'Other';
-    for(const c of COURIERS){ if(text.toLowerCase().includes(c.toLowerCase())){ courier = c==='Xpress Bees'?'XpressBees':c; break; } }
-    labels.push({ pageIndex:i, courier, rawRatio });
+    const courier = pageCouriers[i-1];
+    labels.push({ pageIndex:i, courier, rawRatio: courierCropRatios[courier].rawRatio });
   }
   await sleep(150);
 
@@ -752,16 +827,22 @@ const pdfCanvas = document.getElementById('pdfCanvas');
 const cctx = pdfCanvas.getContext('2d');
 const cropbox = document.getElementById('cropbox');
 const stageEl = document.getElementById('stage');
-let modalViewport=null, modalRawDims=null;
+const courierSelectEl = document.getElementById('cropCourierSelect');
+let modalViewport=null, modalRawDims=null, modalCourier=null;
 
 document.getElementById('adjustCropBtn').addEventListener('click', async ()=>{
   cropModal.classList.remove('hidden');
-  await drawModalPreview();
+  const couriers = Object.keys(courierCropRatios);
+  courierSelectEl.innerHTML = couriers.map(c=>`<option value="${c}">${c} (${labels.filter(l=>l.courier===c).length} pages)</option>`).join('');
+  const preferred = (activeCourierFilter!=='All' && couriers.includes(activeCourierFilter)) ? activeCourierFilter : couriers[0];
+  courierSelectEl.value = preferred;
+  await drawModalPreview(preferred);
 });
+courierSelectEl.addEventListener('change', ()=> drawModalPreview(courierSelectEl.value));
 document.getElementById('closeCropBtn').addEventListener('click', ()=>cropModal.classList.add('hidden'));
 document.getElementById('reAutoBtn').addEventListener('click', async ()=>{
   const blocks = detectContentBlocks(pdfCanvas, cctx);
-  if(blocks.length){ cropRatio = blockToRatio(blocks[0], pdfCanvas.width, pdfCanvas.height); drawCropboxEl(); }
+  if(blocks.length){ courierCropRatios[modalCourier].ratio = blockToRatio(blocks[0], pdfCanvas.width, pdfCanvas.height); drawCropboxEl(); }
 });
 document.getElementById('applyCropBtn').addEventListener('click', async ()=>{
   document.getElementById('cropStatus').textContent = 'Re-processing…';
@@ -769,8 +850,10 @@ document.getElementById('applyCropBtn').addEventListener('click', async ()=>{
   await reprocessWithCurrentCrop();
 });
 
-async function drawModalPreview(){
-  const page = await pdfjsDoc.getPage(1);
+async function drawModalPreview(courier){
+  modalCourier = courier;
+  const samplePageIndex = labels.find(l=>l.courier===courier)?.pageIndex || 1;
+  const page = await pdfjsDoc.getPage(samplePageIndex);
   const disp = page.getViewport({scale:1});
   const raw = page.getViewport({scale:1, rotation:0});
   const maxW = Math.min(560, window.innerWidth-80);
@@ -784,15 +867,16 @@ async function drawModalPreview(){
 }
 function drawCropboxEl(){
   const w=pdfCanvas.width, h=pdfCanvas.height;
-  cropbox.style.left=(cropRatio.x*w)+'px'; cropbox.style.top=(cropRatio.y*h)+'px';
-  cropbox.style.width=(cropRatio.w*w)+'px'; cropbox.style.height=(cropRatio.h*h)+'px';
+  const r = courierCropRatios[modalCourier].ratio;
+  cropbox.style.left=(r.x*w)+'px'; cropbox.style.top=(r.y*h)+'px';
+  cropbox.style.width=(r.w*w)+'px'; cropbox.style.height=(r.h*h)+'px';
 }
 let drag=null;
 function clamp(v,lo,hi){ return Math.max(lo,Math.min(hi,v)); }
 function startDrag(e, mode){
   e.preventDefault();
   const pt = e.touches?e.touches[0]:e;
-  drag = { mode, startX:pt.clientX, startY:pt.clientY, orig:{...cropRatio} };
+  drag = { mode, startX:pt.clientX, startY:pt.clientY, orig:{...courierCropRatios[modalCourier].ratio} };
   window.addEventListener('mousemove', onDrag); window.addEventListener('mouseup', endDrag);
   window.addEventListener('touchmove', onDrag, {passive:false}); window.addEventListener('touchend', endDrag);
 }
@@ -808,7 +892,7 @@ function onDrag(e){
     if(drag.mode.includes('w')){ const nx=clamp(drag.orig.x+dx,0,drag.orig.x+drag.orig.w-0.03); w=drag.orig.w+(drag.orig.x-nx); x=nx; }
     if(drag.mode.includes('n')){ const ny=clamp(drag.orig.y+dy,0,drag.orig.y+drag.orig.h-0.03); h=drag.orig.h+(drag.orig.y-ny); y=ny; }
   }
-  cropRatio={x,y,w,h}; drawCropboxEl();
+  courierCropRatios[modalCourier].ratio={x,y,w,h}; drawCropboxEl();
 }
 function endDrag(){ drag=null; window.removeEventListener('mousemove',onDrag); window.removeEventListener('mouseup',endDrag); window.removeEventListener('touchmove',onDrag); window.removeEventListener('touchend',endDrag); }
 cropbox.addEventListener('mousedown', e=>{ if(!e.target.classList.contains('handle')) startDrag(e,'move'); });
@@ -823,9 +907,9 @@ async function reprocessWithCurrentCrop(){
   document.getElementById('resultSection').classList.add('hidden');
   document.getElementById('processingView').classList.remove('hidden');
   setStep('crop', 60);
-  currentViewport = modalViewport; rawPageDims = modalRawDims; canvasEl = pdfCanvas;
-  const rawRatio = ratioRectToRawRect(cropRatio, canvasEl, currentViewport, rawPageDims);
-  for(const lab of labels) lab.rawRatio = rawRatio;
+  const rawRatio = ratioRectToRawRect(courierCropRatios[modalCourier].ratio, pdfCanvas, modalViewport, modalRawDims);
+  courierCropRatios[modalCourier].rawRatio = rawRatio;
+  for(const lab of labels){ if(lab.courier===modalCourier) lab.rawRatio = rawRatio; }
   setStep('courier', 80); await sleep(100);
   setStep('out', 92);
   await renderThumbnails();
